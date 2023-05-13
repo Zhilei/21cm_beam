@@ -14,9 +14,12 @@ from scipy import optimize
 
 import hera_cal
 import pandas as pd
+from astropy import constants
 
 ra_ctr_deg = 30
-ra_rng_deg = 1
+ra_rng_deg = 20
+
+bl_max = 300 # m
 
 src_ra_deg = 30.3
 src_dec_deg = -30.8
@@ -33,10 +36,11 @@ lsts = hera_cal.utils.JD2LST(jds)
 idx = np.where((lsts > np.radians(ra_ctr_deg - ra_rng_deg/2.)) & (lsts < np.radians(ra_ctr_deg + ra_rng_deg/2.)))[0]
 print('%d files selected.'%len(idx))
 
-z_pointing = []
-fit_result = []
 
-for ifreq in range(1400, 100, -200):
+
+for ifreq in range(1400, 100, -100):
+    z_pointing = []
+    fit_result = []
     for data_file in data_files[idx]:
         print('File:', data_file)
         uv = UVData()
@@ -59,13 +63,14 @@ for ifreq in range(1400, 100, -200):
             dc.redundant_avg()
             print('Data array shape after data conditioning:', dc.uv_1d.data_array.shape)
             print('Noise array shape after data conditioning:', dc.uvn.data_array.shape)
+            syn_beam = np.degrees(constants.c.value/dc.uv_1d.freq_array[0][0]/bl_max)
 
             # Pixels Setup
             ra_ctr_deg = src_ra_deg 
-            ra_rng_deg = 2
+            ra_rng_deg = syn_beam * 5
             n_ra = 40
             dec_ctr_deg = src_dec_deg
-            dec_rng_deg = 2 
+            dec_rng_deg = syn_beam * 5 
             n_dec = 40
 
             sky_px = optimal_mapping_radec_grid.SkyPx()
@@ -101,8 +106,8 @@ for ifreq in range(1400, 100, -200):
                 np.radians(0.5), 
                 np.radians(0)]
 
-            bounds = ([0, np.radians(src_ra_deg-1), np.radians(src_dec_deg-1), np.radians(0.2), np.radians(0.2), -np.pi],
-                      [1000, np.radians(src_ra_deg+1), np.radians(src_dec_deg+1), np.radians(0.8), np.radians(0.8), np.pi],)
+            bounds = ([0, np.radians(src_ra_deg-1), np.radians(src_dec_deg-1), np.radians(0.5 * syn_beam), np.radians(0.5 * syn_beam), -np.pi],
+                      [1000, np.radians(src_ra_deg+1), np.radians(src_dec_deg+1), np.radians(2.0 * syn_beam), np.radians(2.0 * syn_beam), np.pi],)
 
             try:
                 popt, pcov = optimize.curve_fit(func.gaussian2d, xieta, map_norm.flatten(), p0=p0, bounds=bounds)
@@ -110,15 +115,12 @@ for ifreq in range(1400, 100, -200):
                 print('Fitting Failed.')
                 continue
 
-            map_fit = func.gaussian2d(xieta, *popt).reshape(shape)
-
             print(popt)
             z_pointing.append(lst_ze)
             fit_result.append(popt)
 
     z_pointing = np.array(z_pointing)
     fit_result = np.array(fit_result)
-    d_ra = z_pointing - fit_result[:, 1]
     result = np.concatenate((z_pointing[:, np.newaxis], fit_result), axis=1)
     df = pd.DataFrame(data=result, columns=['Pointing', 'Amp', 'x0', 'y0', 'fwhm_major', 'fwhm_minor', 'fwhm_theta'])
-    df.to_csv('primary_beam_%.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6))
+    df.to_csv('primary_beam_%6.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6), index=False)
