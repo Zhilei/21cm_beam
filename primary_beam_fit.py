@@ -38,7 +38,7 @@ print('%d files selected.'%len(idx))
 
 
 
-for ifreq in range(1450, 100, -100):
+for ifreq in range(1450, 100, -50):
     z_pointing = []
     fit_result = []
     for data_file in data_files[idx]:
@@ -104,12 +104,12 @@ for ifreq in range(1450, 100, -100):
             p0 = [15, 
                 np.radians(src_ra_deg), 
                 np.radians(src_dec_deg), 
-                np.radians(0.5), 
-                np.radians(0.5), 
+                np.radians(1.2*syn_beam), 
+                np.radians(0.8*syn_beam), 
                 np.radians(0)]
 
-            bounds = ([0, np.radians(src_ra_deg-1), np.radians(src_dec_deg-1), np.radians(0.5 * syn_beam), np.radians(0.5 * syn_beam), -np.pi],
-                      [1000, np.radians(src_ra_deg+1), np.radians(src_dec_deg+1), np.radians(2.0 * syn_beam), np.radians(2.0 * syn_beam), np.pi],)
+            bounds = ([0, np.radians(src_ra_deg-1), np.radians(src_dec_deg-1), np.radians(0.6 * syn_beam), np.radians(0.4 * syn_beam), -np.pi],
+                      [1000, np.radians(src_ra_deg+1), np.radians(src_dec_deg+1), np.radians(2.4 * syn_beam), np.radians(1.6 * syn_beam), np.pi],)
 
             try:
                 popt, pcov = optimize.curve_fit(func.gaussian2d, xieta, map_norm.flatten(), p0=p0, bounds=bounds)
@@ -125,4 +125,4 @@ for ifreq in range(1450, 100, -100):
     fit_result = np.array(fit_result)
     result = np.concatenate((z_pointing[:, np.newaxis], fit_result), axis=1)
     df = pd.DataFrame(data=result, columns=['Pointing', 'Amp', 'x0', 'y0', 'fwhm_major', 'fwhm_minor', 'fwhm_theta'])
-    df.to_csv('primary_beam_%06.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6), index=False)
+    df.to_csv('data/primary_beam_%06.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6), index=False)
