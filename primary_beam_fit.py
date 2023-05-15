@@ -38,7 +38,7 @@ print('%d files selected.'%len(idx))
 
 
 
-for ifreq in range(1400, 100, -100):
+for ifreq in range(1450, 100, -100):
     z_pointing = []
     fit_result = []
     for data_file in data_files[idx]:
@@ -59,7 +59,9 @@ for ifreq in range(1400, 100, -100):
             dc = data_conditioning.DataConditioning(uv_sel, ifreq, ipol)
             print('Frequency: %.2fMHz'%(dc.uv_1d.freq_array[0]/1e6))
             dc.noise_calc()
-            dc.rm_flag()
+            if dc.rm_flag() is None:
+                print('All data are flagged')
+                continue
             dc.redundant_avg()
             print('Data array shape after data conditioning:', dc.uv_1d.data_array.shape)
             print('Noise array shape after data conditioning:', dc.uvn.data_array.shape)
@@ -123,4 +125,4 @@ for ifreq in range(1400, 100, -100):
     fit_result = np.array(fit_result)
     result = np.concatenate((z_pointing[:, np.newaxis], fit_result), axis=1)
     df = pd.DataFrame(data=result, columns=['Pointing', 'Amp', 'x0', 'y0', 'fwhm_major', 'fwhm_minor', 'fwhm_theta'])
-    df.to_csv('primary_beam_%6.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6), index=False)
+    df.to_csv('primary_beam_%06.2fMHz.csv'%(uv.freq_array[0, ifreq]/1e6), index=False)
